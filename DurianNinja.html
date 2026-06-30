@@ -2,20 +2,13 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <!-- This meta tag is crucial for mobile games to prevent zooming -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Durian Ninja: Supreme Slice</title>
-    <link href="https://fonts.googleapis.com/css2?family=Luckiest+Guy&family=Nunito:wght@700;900&display=swap" rel="stylesheet">
-    <script src="https://cdn.tailwindcss.com"></script>
+    <title>Durian Ninja</title>
+    <!-- Tone.js for sound generation -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
     <style>
-        :root {
-            --durian-green: #2C4C23;
-            --durian-light-green: #5C7A34;
-            --durian-yellow: #FFD700;
-            --durian-gold: #FFB300;
-            --durian-white: #FFFDD0;
-            --bomb-red: #8B0000;
-        }
+        @import url('https://fonts.googleapis.com/css2?family=Fredoka+One&display=swap');
 
         body, html {
             margin: 0;
@@ -23,1138 +16,592 @@
             width: 100%;
             height: 100%;
             overflow: hidden;
-            background-color: #0a0f07;
-            font-family: 'Nunito', sans-serif;
-            touch-action: none; /* Critical for touch games */
-            user-select: none;
-            -webkit-user-select: none;
-            -webkit-touch-callout: none;
+            background-color: #2c3e50;
+            font-family: 'Fredoka One', 'Comic Sans MS', cursive, sans-serif;
+            touch-action: none; /* Prevents mobile scrolling and zooming */
         }
 
-        #game-container {
-            position: relative;
-            width: 100%;
-            height: 100%;
-            /* Modern, deep jungle gradient background */
-            background: radial-gradient(circle at 50% 120%, #2f4f2f 0%, #0a1108 80%);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            overflow: hidden;
-            cursor: crosshair;
-        }
-
-        #game-container.slicing {
-            cursor: none;
-        }
-
-        /* Ambient background texture overlay */
-        #game-container::before {
-            content: '';
-            position: absolute;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%233a5f2d' fill-opacity='0.1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
-            opacity: 0.5;
-            z-index: 0;
-            pointer-events: none;
-        }
-
-        canvas {
+        #gameCanvas {
             display: block;
             width: 100%;
             height: 100%;
-            position: absolute;
-            top: 0;
-            left: 0;
-            z-index: 1;
+            touch-action: none; /* Crucial for swipe mechanics on mobile */
         }
 
-        #ui-layer {
+        /* --- KID FRIENDLY UI OVERLAYS --- */
+        #uiLayer {
             position: absolute;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            pointer-events: none;
-            z-index: 5;
-            padding: clamp(10px, 3vw, 30px);
-            box-sizing: border-box;
+            pointer-events: none; /* Let clicks pass through to canvas */
             display: flex;
             flex-direction: column;
             justify-content: space-between;
         }
 
-        .hud-top {
-            display: flex;
+        .hud {
+            display: none;
+            padding: 20px;
             justify-content: space-between;
-            align-items: flex-start;
+            font-size: 32px;
+            color: #FFF;
+            text-shadow: 3px 3px 0 #000, -2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000;
         }
 
-        /* Modern Glassmorphism Scoreboard */
-        .score-board {
-            background: rgba(44, 76, 35, 0.6);
-            backdrop-filter: blur(8px);
-            -webkit-backdrop-filter: blur(8px);
-            border: 3px solid rgba(255, 215, 0, 0.4);
-            border-bottom-width: 6px;
-            border-radius: 20px;
-            padding: 10px 25px;
+        #scoreBoard { color: #FFD700; }
+        #livesBoard { color: #FF4500; }
+
+        /* MAIN MENU - Bouncy & Bright */
+        #menu {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle, #85C1E9 0%, #2874A6 100%);
             display: flex;
+            flex-direction: column;
             align-items: center;
-            gap: 15px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.5), inset 0 2px 10px rgba(255,255,255,0.1);
-            transform-origin: top left;
-            transition: transform 0.1s;
-        }
-        
-        .score-board.pop {
-            transform: scale(1.1);
+            justify-content: center;
+            pointer-events: auto;
+            z-index: 10;
         }
 
-        .score-label {
-            font-family: 'Nunito', sans-serif;
-            font-weight: 900;
-            color: #c5e1a5;
-            font-size: 1.2rem;
-            text-transform: uppercase;
-            letter-spacing: 2px;
+        .title-container {
+            text-align: center;
+            margin-bottom: 40px;
+            animation: float 3s ease-in-out infinite;
         }
 
-        .score-display {
-            font-family: 'Luckiest Guy', cursive;
-            font-size: 3.5rem;
-            color: var(--durian-yellow);
-            text-shadow: 0 4px 0 #a06b00, 0 6px 15px rgba(0,0,0,0.6);
+        .title-main {
+            font-size: 70px;
+            color: #FFD700; /* Durian Yellow */
+            text-shadow: 5px 5px 0px #228B22, 0 0 20px rgba(255, 215, 0, 0.8);
             margin: 0;
+            letter-spacing: 2px;
             line-height: 1;
         }
-
-        /* Custom Durian Lives Icons */
-        .lives-container {
-            display: flex;
-            gap: 8px;
-            background: rgba(0, 0, 0, 0.4);
-            padding: 12px 18px;
-            border-radius: 30px;
-            border: 2px solid rgba(255, 255, 255, 0.1);
+        
+        .title-sub {
+            font-size: 40px;
+            color: #32CD32; /* Durian Green */
+            text-shadow: 3px 3px 0px #006400;
+            margin: -10px 0 0 0;
         }
 
-        .life-icon {
-            width: 35px;
-            height: 35px;
-            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            filter: drop-shadow(0 3px 5px rgba(0,0,0,0.5));
+        .play-btn {
+            background-color: #FF8C00;
+            color: white;
+            border: 6px solid #FFF;
+            border-radius: 40px;
+            padding: 20px 60px;
+            font-size: 45px;
+            font-family: 'Fredoka One', cursive;
+            cursor: pointer;
+            box-shadow: 0 10px 0 #B8420F, 0 15px 20px rgba(0,0,0,0.4);
+            transition: all 0.1s;
+            animation: pulse 1.5s infinite;
         }
 
-        .life-icon.lost {
-            transform: scale(0.5) rotate(-45deg);
-            filter: grayscale(100%) opacity(0.3);
+        .play-btn:active {
+            transform: translateY(10px);
+            box-shadow: 0 0px 0 #B8420F, 0 5px 10px rgba(0,0,0,0.4);
         }
 
-        /* Glassmorphism Menus */
-        .overlay-screen {
+        #gameOverScreen {
+            display: none;
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(10, 17, 8, 0.7);
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
-            z-index: 10;
-            display: flex;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.8);
             flex-direction: column;
-            justify-content: center;
             align-items: center;
+            justify-content: center;
             pointer-events: auto;
-            transition: opacity 0.4s ease, visibility 0.4s;
+            z-index: 10;
+            text-align: center;
         }
 
-        .menu-panel {
-            background: linear-gradient(135deg, rgba(60, 95, 45, 0.9) 0%, rgba(35, 60, 25, 0.95) 100%);
-            border: 4px solid var(--durian-gold);
-            border-radius: 30px;
-            padding: 50px 40px;
-            text-align: center;
-            box-shadow: 0 20px 50px rgba(0,0,0,0.8), inset 0 5px 15px rgba(255,255,255,0.2);
-            max-width: 90%;
-            width: 500px;
-            transform: translateY(0);
-            animation: float 4s ease-in-out infinite;
+        .game-over-title {
+            font-size: 60px;
+            color: #FF6347;
+            text-shadow: 4px 4px 0 #000;
+            margin-bottom: 10px;
+            animation: float 2s infinite;
+        }
+
+        .final-score {
+            font-size: 40px;
+            color: #FFD700;
+            text-shadow: 3px 3px 0 #000;
+            margin-bottom: 30px;
         }
 
         @keyframes float {
-            0%, 100% { transform: translateY(0px); }
-            50% { transform: translateY(-10px); }
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-15px); }
         }
 
-        .hidden {
-            opacity: 0 !important;
-            visibility: hidden !important;
-            pointer-events: none;
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.08); }
         }
-
-        h1 {
-            font-family: 'Luckiest Guy', cursive;
-            background: linear-gradient(to bottom, #FFF, var(--durian-yellow));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            font-size: clamp(3.5rem, 8vw, 5rem);
-            margin-bottom: 5px;
-            filter: drop-shadow(0 6px 0 #8b6508) drop-shadow(0 10px 15px rgba(0,0,0,0.6));
-            letter-spacing: 2px;
-            line-height: 1.1;
-        }
-
-        .subtitle {
-            color: #e0f2f1;
-            font-size: 1.2rem;
-            margin-bottom: 35px;
-            font-weight: 700;
-            text-shadow: 0 2px 4px rgba(0,0,0,0.8);
-            line-height: 1.5;
-        }
-
-        .btn {
-            background: linear-gradient(180deg, var(--durian-yellow) 0%, #d49500 100%);
-            border: 4px solid #fff;
-            color: #2a1600;
-            font-family: 'Luckiest Guy', cursive;
-            font-size: 2.2rem;
-            padding: 15px 50px;
-            border-radius: 50px;
-            cursor: pointer;
-            box-shadow: 0 8px 0 #946800, 0 15px 25px rgba(0,0,0,0.4);
-            transition: all 0.15s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .btn::after {
-            content: '';
-            position: absolute;
-            top: -50%; left: -50%; width: 200%; height: 200%;
-            background: linear-gradient(to bottom right, rgba(255,255,255,0) 0%, rgba(255,255,255,0.4) 50%, rgba(255,255,255,0) 100%);
-            transform: rotate(45deg) translate(-100%, -100%);
-            transition: transform 0.5s;
-        }
-
-        .btn:hover::after {
-            transform: rotate(45deg) translate(100%, 100%);
-        }
-
-        .btn:active {
-            transform: translateY(8px);
-            box-shadow: 0 0 0 #946800, 0 5px 10px rgba(0,0,0,0.4);
-        }
-
-        .btn:hover {
-            background: linear-gradient(180deg, #ffe033 0%, #eaa600 100%);
-        }
-
-        /* Dynamic floating scores */
-        .score-pop {
-            position: absolute;
-            font-family: 'Luckiest Guy', cursive;
-            font-size: 2.5rem;
-            color: var(--durian-yellow);
-            -webkit-text-stroke: 1px #fff;
-            filter: drop-shadow(2px 4px 0 #000);
-            pointer-events: none;
-            animation: slicePop 1s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
-            z-index: 6;
-        }
-
-        @keyframes slicePop {
-            0% { transform: translate(-50%, -50%) scale(0.2) rotate(-10deg); opacity: 0; }
-            30% { transform: translate(-50%, -120%) scale(1.3) rotate(10deg); opacity: 1; }
-            100% { transform: translate(-50%, -180%) scale(1) rotate(0deg); opacity: 0; }
-        }
-
-        /* Flash overlays for damage/bombs */
-        #flash-overlay {
-            position: absolute;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background-color: #fff;
-            z-index: 9;
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 0.4s ease-out;
-        }
-        
-        .game-over-title {
-            background: linear-gradient(to bottom, #ff7b7b, #c00000);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            filter: drop-shadow(0 6px 0 #4a0000) drop-shadow(0 10px 15px rgba(0,0,0,0.6));
-        }
-
-        .stats-box {
-            background: rgba(0,0,0,0.4);
-            border-radius: 15px;
-            padding: 15px;
-            margin-bottom: 25px;
-            border: 2px solid rgba(255,255,255,0.1);
-        }
-
     </style>
 </head>
 <body>
 
-    <div id="game-container">
-        <canvas id="gameCanvas"></canvas>
-        <div id="flash-overlay"></div>
-        
-        <!-- Heads Up Display -->
-        <div id="ui-layer" class="hidden">
-            <div class="hud-top">
-                <div class="score-board" id="scoreBoardEl">
-                    <div class="score-label">SCORE</div>
-                    <div class="score-display" id="scoreValue">0</div>
-                </div>
-                
-                <div class="lives-container" id="livesContainer">
-                    <!-- SVG Durian Flesh Icon -->
-                    <svg class="life-icon" id="life1" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M50 90 C 20 90, 10 50, 30 25 C 40 10, 60 10, 70 25 C 90 50, 80 90, 50 90 Z" fill="#FFD700" stroke="#E69900" stroke-width="4"/>
-                        <path d="M40 30 Q 50 15 60 30 Q 75 55 50 80 Q 25 55 40 30 Z" fill="#FFEAA7"/>
-                    </svg>
-                    <svg class="life-icon" id="life2" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M50 90 C 20 90, 10 50, 30 25 C 40 10, 60 10, 70 25 C 90 50, 80 90, 50 90 Z" fill="#FFD700" stroke="#E69900" stroke-width="4"/>
-                        <path d="M40 30 Q 50 15 60 30 Q 75 55 50 80 Q 25 55 40 30 Z" fill="#FFEAA7"/>
-                    </svg>
-                    <svg class="life-icon" id="life3" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M50 90 C 20 90, 10 50, 30 25 C 40 10, 60 10, 70 25 C 90 50, 80 90, 50 90 Z" fill="#FFD700" stroke="#E69900" stroke-width="4"/>
-                        <path d="M40 30 Q 50 15 60 30 Q 75 55 50 80 Q 25 55 40 30 Z" fill="#FFEAA7"/>
-                    </svg>
-                </div>
-            </div>
-        </div>
+    <canvas id="gameCanvas"></canvas>
 
-        <!-- Start Screen -->
-        <div id="start-screen" class="overlay-screen">
-            <div class="menu-panel">
-                <h1>DURIAN<br>NINJA</h1>
-                <p class="subtitle">Slice the King of Fruits for glory!<br>
-                <span class="text-yellow-400">Musang King (10), D24 (20), Black Thorn (50)</span><br><br>
-                <span class="text-red-400 font-bold uppercase tracking-wider">⚠️ Beware the Rambutan Bombs ⚠️</span><br>
-                Missing a durian costs a life.</p>
-                <button id="start-btn" class="btn">SLICE NOW</button>
-            </div>
-        </div>
-
-        <!-- Game Over Screen -->
-        <div id="game-over-screen" class="overlay-screen hidden">
-            <div class="menu-panel">
-                <h1 class="game-over-title">WASTED!</h1>
-                
-                <div class="stats-box">
-                    <p style="font-family: 'Luckiest Guy'; color: #fff; font-size: 1.5rem; margin-bottom: 5px;">Final Score</p>
-                    <h2 style="font-family: 'Luckiest Guy'; color: var(--durian-yellow); font-size: 4rem; line-height: 1; margin: 0; text-shadow: 0 4px 0 #8b6508;">
-                        <span id="finalScore">0</span>
-                    </h2>
-                    <p id="highScoreText" style="color: #a5d6a7; font-weight: 900; margin-top: 10px; font-size: 1.2rem;"></p>
-                </div>
-
-                <button id="restart-btn" class="btn">TRY AGAIN</button>
-            </div>
+    <div id="uiLayer">
+        <div class="hud" id="hud">
+            <div id="scoreBoard">Score: 0</div>
+            <div id="livesBoard">Lives: 3 💛</div>
         </div>
     </div>
 
-    <script>
-        const canvas = document.getElementById('gameCanvas');
-        const ctx = canvas.getContext('2d');
-        const container = document.getElementById('game-container');
+    <!-- Kid Friendly Main Menu -->
+    <div id="menu">
+        <div class="title-container">
+            <h1 class="title-main">DURIAN</h1>
+            <h2 class="title-sub">NINJA!</h2>
+        </div>
+        <button class="play-btn" id="startBtn">PLAY!</button>
+    </div>
 
-        // UI Elements
-        const uiLayer = document.getElementById('ui-layer');
-        const startScreen = document.getElementById('start-screen');
-        const gameOverScreen = document.getElementById('game-over-screen');
-        const scoreValue = document.getElementById('scoreValue');
-        const scoreBoardEl = document.getElementById('scoreBoardEl');
-        const finalScore = document.getElementById('finalScore');
-        const highScoreText = document.getElementById('highScoreText');
-        const flashOverlay = document.getElementById('flash-overlay');
+    <!-- Game Over Screen -->
+    <div id="gameOverScreen">
+        <h1 class="game-over-title">OH NO!</h1>
+        <div class="final-score" id="finalScoreDisplay">You Scored: 0</div>
+        <button class="play-btn" id="restartBtn">PLAY AGAIN</button>
+    </div>
 
-        // Game State
-        let gameState = 'START'; // START, PLAYING, GAMEOVER
-        let score = 0;
-        let highScore = localStorage.getItem('durianNinjaHighScoreV2') || 0;
-        let lives = 3;
-        let frameCount = 0;
-        
-        // Entities & Collections
-        let targets = [];
-        let particles = [];
-        let slicePoints = [];
-        
-        // Mechanics Settings - Base
-        const GRAVITY = 0.20; // Slightly reduced gravity for easier float
-        let baseSpawnRate = 140; // Slower initial spawn rate for an easier start
-        let spawnRate = baseSpawnRate; 
-        let difficultyMultiplier = 1;
-        let isSlicing = false;
+<script>
+/** 
+ * GAME ENGINE & LOGIC 
+ */
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+let width, height;
 
-        // SFX Engine Setup using Tone.js (Synthesized arcade sounds)
-        const SFX = {
-            ready: false,
-            init: async function() {
-                if (this.ready) return;
-                await Tone.start();
-                this.ready = true;
-                
-                // Blade swoosh
-                this.sliceSynth = new Tone.NoiseSynth({ noise: { type: 'pink' }, envelope: { attack: 0.005, decay: 0.1, sustain: 0 } }).toDestination();
-                this.sliceSynth.volume.value = -10;
-                
-                // Juicy fruit splat
-                this.splatSynth = new Tone.MembraneSynth({ pitchDecay: 0.05, octaves: 4, envelope: { attack: 0.01, decay: 0.3, sustain: 0 } }).toDestination();
-                this.splatSynth.volume.value = -5;
-                
-                // Bomb explosion
-                this.boomSynth = new Tone.MembraneSynth({ pitchDecay: 0.2, octaves: 10, envelope: { attack: 0.01, decay: 0.5, sustain: 0 } }).toDestination();
-                this.boomSynth.volume.value = 5;
-                
-                // Missed fruit sound
-                this.missSynth = new Tone.FMSynth({ modulationIndex: 12.22, envelope: { attack: 0.01, decay: 0.4 } }).toDestination();
-                this.missSynth.volume.value = -8;
-                
-                // UI & Music Chimes
-                this.scoreSynth = new Tone.PolySynth(Tone.Synth, { envelope: { attack: 0.01, decay: 0.1, sustain: 0 } }).toDestination();
-                this.scoreSynth.volume.value = -5;
+// UI Elements
+const menu = document.getElementById('menu');
+const hud = document.getElementById('hud');
+const scoreBoard = document.getElementById('scoreBoard');
+const livesBoard = document.getElementById('livesBoard');
+const gameOverScreen = document.getElementById('gameOverScreen');
+const finalScoreDisplay = document.getElementById('finalScoreDisplay');
+const startBtn = document.getElementById('startBtn');
+const restartBtn = document.getElementById('restartBtn');
 
-                // --- Background Music Setup ---
-                Tone.Transport.bpm.value = 130; // Fast, fun tempo
-                
-                // Plucky melody synth
-                this.bgmSynth = new Tone.Synth({
-                    oscillator: { type: 'square' },
-                    envelope: { attack: 0.01, decay: 0.1, sustain: 0, release: 0.1 }
-                }).toDestination();
-                this.bgmSynth.volume.value = -18; // Keep it quiet enough to hear sound effects
-                
-                // Ninja-style pentatonic melody
-                const melodyNotes = ["C4", "Eb4", "F4", "G4", "C5", null, "Bb4", "G4", "F4", "Eb4", "C4", null, "Bb3", "C4", null, null];
-                this.bgmSeq = new Tone.Sequence((time, note) => {
-                    if (note) this.bgmSynth.triggerAttackRelease(note, "16n", time);
-                }, melodyNotes, "8n");
-                
-                // Driving bass drum
-                this.bassSynth = new Tone.MembraneSynth().toDestination();
-                this.bassSynth.volume.value = -12;
-                
-                const bassNotes = ["C2", null, "C2", null, "F2", null, "G2", null];
-                this.bassSeq = new Tone.Sequence((time, note) => {
-                    if (note) this.bassSynth.triggerAttackRelease(note, "8n", time);
-                }, bassNotes, "4n");
-            },
-            playBGM: function() {
-                if (!this.ready) return;
-                Tone.Transport.start();
-                this.bgmSeq.start(0);
-                this.bassSeq.start(0);
-            },
-            stopBGM: function() {
-                if (!this.ready) return;
-                Tone.Transport.stop();
-                this.bgmSeq.stop();
-                this.bassSeq.stop();
-            },
-            slice: function() { if(this.ready) this.sliceSynth.triggerAttackRelease("16n"); },
-            splat: function() { if(this.ready) this.splatSynth.triggerAttackRelease("C2", "8n"); },
-            boom: function() { if(this.ready) this.boomSynth.triggerAttackRelease("C1", "2n"); },
-            miss: function() { if(this.ready) this.missSynth.triggerAttackRelease("E2", "4n"); },
-            start: function() { if(this.ready) this.scoreSynth.triggerAttackRelease(["C4", "E4", "G4"], "8n"); },
-            gameOver: function() { 
-                if(!this.ready) return;
-                const now = Tone.now();
-                this.scoreSynth.triggerAttackRelease("G3", "8n", now);
-                this.scoreSynth.triggerAttackRelease("Eb3", "8n", now + 0.2);
-                this.scoreSynth.triggerAttackRelease("C3", "2n", now + 0.4);
-            }
-        };
+// Resize handler
+function resize() {
+    width = canvas.width = window.innerWidth;
+    height = canvas.height = window.innerHeight;
+}
+window.addEventListener('resize', resize);
+resize();
 
-        // Resize handler
-        function resizeCanvas() {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
-        }
-        window.addEventListener('resize', resizeCanvas);
-        resizeCanvas();
+// Game State
+let isPlaying = false;
+let score = 0;
+let lives = 3;
+let fruits = [];
+let particles = [];
+let frame = 0;
 
-        const rand = (min, max) => Math.random() * (max - min) + min;
+// Difficulty Scaling Variables
+let spawnRate = 100; 
+let bombChance = 0.1;
+let gravity = 0.15;
+let jumpVelocityMin = 12;
+let jumpVelocityMax = 18;
 
-        // Enhanced Durian Types with Gradients
-        const DURIAN_TYPES = [
-            { 
-                id: 'musang', name: 'Musang King', points: 10, prob: 0.6, radius: 50,
-                cDark: '#1a3311', cBase: '#2C4C23', cLight: '#4a7a22', 
-                meatBase: '#FFD700', meatLight: '#FFEAA7', meatDark: '#E69900'
-            },
-            { 
-                id: 'd24', name: 'D24', points: 20, prob: 0.3, radius: 45,
-                cDark: '#2e3b1c', cBase: '#556b2f', cLight: '#8fbc8f',
-                meatBase: '#F5DEB3', meatLight: '#FFF8DC', meatDark: '#D2B48C'
-            },
-            { 
-                id: 'blackthorn', name: 'Black Thorn', points: 50, prob: 0.1, radius: 40,
-                cDark: '#11130a', cBase: '#2d3319', cLight: '#4d572b',
-                meatBase: '#FFA500', meatLight: '#FFDAB9', meatDark: '#CC8400'
-            }
-        ];
+// Input (Blade) State
+let isSlicing = false;
+let bladeTrail = [];
+const MAX_TRAIL = 10;
 
-        class Target {
-            constructor(x, y, vx, vy, type) {
-                this.x = x;
-                this.y = y;
-                this.vx = vx;
-                this.vy = vy;
-                this.type = type; // 'fruit' or 'bomb'
-                this.radius = type === 'bomb' ? 40 : 50;
-                this.rotation = rand(0, Math.PI * 2);
-                this.rotationSpeed = rand(-0.08, 0.08);
-                this.active = true;
-                this.isHalf = false;
-                this.halves = []; 
-                
-                if (this.type === 'fruit') {
-                    let r = Math.random();
-                    let cumulative = 0;
-                    for (let dt of DURIAN_TYPES) {
-                        cumulative += dt.prob;
-                        if (r <= cumulative) {
-                            this.fruitData = dt;
-                            break;
-                        }
-                    }
-                    if(!this.fruitData) this.fruitData = DURIAN_TYPES[0];
-                    this.radius = this.fruitData.radius;
-                }
-            }
+/** 
+ * AUDIO SYSTEM (Tone.js) 
+ */
+let bgm, swooshSynth, splatSynth, boomSynth;
 
-            update() {
-                if (!this.active) return;
-                
-                this.vy += GRAVITY * difficultyMultiplier;
-                this.x += this.vx;
-                this.y += this.vy;
-                this.rotation += this.rotationSpeed;
-
-                if (this.isHalf) {
-                    this.halves.forEach(half => {
-                        half.vy += GRAVITY;
-                        half.x += half.vx;
-                        half.y += half.vy;
-                        half.rotation += half.rotSpeed;
-                    });
-                    
-                    if (this.halves[0].y > canvas.height + 150) {
-                        this.active = false;
-                    }
-                } else {
-                    if (this.y > canvas.height + this.radius + 80) {
-                        this.active = false;
-                        if (this.type === 'fruit' && gameState === 'PLAYING') {
-                            loseLife();
-                        }
-                    }
-                }
-            }
-
-            draw(ctx) {
-                if (!this.active) return;
-
-                if (this.isHalf) {
-                    this.halves.forEach(half => {
-                        ctx.save();
-                        ctx.translate(half.x, half.y);
-                        ctx.rotate(half.rotation);
-                        this.drawRealisticHalf(ctx, half.side);
-                        ctx.restore();
-                    });
-                } else {
-                    ctx.save();
-                    ctx.translate(this.x, this.y);
-                    ctx.rotate(this.rotation);
-                    if (this.type === 'bomb') {
-                        this.drawRealisticBomb(ctx);
-                    } else {
-                        this.drawRealisticDurian(ctx);
-                    }
-                    ctx.restore();
-                }
-            }
-
-            drawRealisticDurian(ctx) {
-                const r = this.radius;
-                const fd = this.fruitData;
-                
-                // Base shadow/depth
-                ctx.beginPath();
-                ctx.arc(0, 0, r * 0.95, 0, Math.PI * 2);
-                let baseGrad = ctx.createRadialGradient(-r*0.2, -r*0.2, r*0.1, 0, 0, r);
-                baseGrad.addColorStop(0, fd.cLight);
-                baseGrad.addColorStop(0.5, fd.cBase);
-                baseGrad.addColorStop(1, fd.cDark);
-                ctx.fillStyle = baseGrad;
-                ctx.fill();
-
-                // Draw overlapping spikes to create a 3D shell texture
-                // Outer spikes
-                this.drawSpikeRing(ctx, r, 16, fd.cDark, fd.cBase, 1.2);
-                // Inner layer of spikes for depth
-                this.drawSpikeRing(ctx, r*0.7, 12, fd.cBase, fd.cLight, 0.9);
-                // Center spikes
-                this.drawSpikeRing(ctx, r*0.4, 7, fd.cLight, fd.cLight, 0.5);
-            }
-
-            drawSpikeRing(ctx, radius, count, colorDark, colorLight, scale) {
-                for (let i = 0; i < count; i++) {
-                    let angle = (i / count) * Math.PI * 2;
-                    let nextAngle = ((i + 1) / count) * Math.PI * 2;
-                    let midAngle = (angle + nextAngle) / 2;
-                    
-                    let innerX = Math.cos(angle) * (radius * 0.8);
-                    let innerY = Math.sin(angle) * (radius * 0.8);
-                    let outerX = Math.cos(midAngle) * (radius * scale);
-                    let outerY = Math.sin(midAngle) * (radius * scale);
-                    let nextX = Math.cos(nextAngle) * (radius * 0.8);
-                    let nextY = Math.sin(nextAngle) * (radius * 0.8);
-                    
-                    ctx.beginPath();
-                    ctx.moveTo(innerX, innerY);
-                    ctx.lineTo(outerX, outerY);
-                    ctx.lineTo(nextX, nextY);
-                    ctx.closePath();
-                    
-                    // Gradient per spike for 3D lighting
-                    let spikeGrad = ctx.createLinearGradient(innerX, innerY, outerX, outerY);
-                    spikeGrad.addColorStop(0, colorDark);
-                    spikeGrad.addColorStop(1, colorLight);
-                    
-                    ctx.fillStyle = spikeGrad;
-                    ctx.fill();
-                    ctx.strokeStyle = colorDark;
-                    ctx.lineWidth = 1;
-                    ctx.stroke();
-                }
-            }
-
-            drawRealisticHalf(ctx, side) {
-                // side: 1 for right, -1 for left
-                const r = this.radius;
-                const fd = this.fruitData;
-                
-                ctx.beginPath();
-                if (side === 1) {
-                    ctx.arc(0, 0, r, -Math.PI/2, Math.PI/2, false);
-                } else {
-                    ctx.arc(0, 0, r, Math.PI/2, -Math.PI/2, false);
-                }
-                
-                // Jagged cut line
-                for(let y = r; y >= -r; y -= 8) {
-                    ctx.lineTo(rand(2, 8) * -side, y);
-                }
-                ctx.closePath();
-                
-                // Shell rendering on the half
-                let shellGrad = ctx.createRadialGradient(side*r*0.5, 0, 0, 0, 0, r);
-                shellGrad.addColorStop(0, fd.cLight);
-                shellGrad.addColorStop(1, fd.cDark);
-                ctx.fillStyle = shellGrad;
-                ctx.fill();
-                
-                // The White Pith (Inner Rind)
-                ctx.beginPath();
-                ctx.ellipse(side * (r * 0.2), 0, r * 0.35, r * 0.85, 0, 0, Math.PI * 2);
-                ctx.fillStyle = '#FFFDD0'; // Creamy white
-                ctx.fill();
-
-                // Draw Durian Meat (Golden, plump lobes)
-                this.drawMeatLobe(ctx, side * (r * 0.35), -r*0.25, r * 0.25, r * 0.4, fd);
-                this.drawMeatLobe(ctx, side * (r * 0.35), r*0.3, r * 0.3, r * 0.45, fd);
-            }
-
-            drawMeatLobe(ctx, x, y, rx, ry, fd) {
-                ctx.beginPath();
-                ctx.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2);
-                
-                let meatGrad = ctx.createRadialGradient(x - rx*0.3, y - ry*0.3, 0, x, y, ry);
-                meatGrad.addColorStop(0, fd.meatLight);
-                meatGrad.addColorStop(0.4, fd.meatBase);
-                meatGrad.addColorStop(1, fd.meatDark);
-                
-                ctx.fillStyle = meatGrad;
-                ctx.fill();
-                
-                // Add a glossy highlight
-                ctx.beginPath();
-                ctx.ellipse(x - rx*0.2, y - ry*0.2, rx * 0.3, ry * 0.5, Math.PI/4, 0, Math.PI * 2);
-                ctx.fillStyle = 'rgba(255,255,255,0.4)';
-                ctx.fill();
-            }
-
-            drawRealisticBomb(ctx) {
-                const r = this.radius;
-                
-                // Base red rambutan body
-                ctx.beginPath();
-                ctx.arc(0, 0, r, 0, Math.PI * 2);
-                let bodyGrad = ctx.createRadialGradient(-r*0.3, -r*0.3, r*0.1, 0, 0, r);
-                bodyGrad.addColorStop(0, '#ff4d4d');
-                bodyGrad.addColorStop(0.7, '#8B0000');
-                bodyGrad.addColorStop(1, '#330000');
-                ctx.fillStyle = bodyGrad;
-                ctx.fill();
-                
-                // Hairy Spikes (Rambutan hairs)
-                ctx.lineCap = 'round';
-                for(let i=0; i<20; i++) {
-                    let angle = (i/20) * Math.PI*2;
-                    let length = rand(1.2, 1.5);
-                    let sway = rand(-0.3, 0.3);
-                    
-                    ctx.beginPath();
-                    ctx.moveTo(Math.cos(angle)*r*0.8, Math.sin(angle)*r*0.8);
-                    
-                    // Curve path
-                    let cpX = Math.cos(angle+sway)*r*1.1;
-                    let cpY = Math.sin(angle+sway)*r*1.1;
-                    let endX = Math.cos(angle+(sway*2))*r*length;
-                    let endY = Math.sin(angle+(sway*2))*r*length;
-                    
-                    ctx.quadraticCurveTo(cpX, cpY, endX, endY);
-                    
-                    // Gradient for hair (red base to green tip)
-                    let hairGrad = ctx.createLinearGradient(Math.cos(angle)*r, Math.sin(angle)*r, endX, endY);
-                    hairGrad.addColorStop(0, '#8B0000');
-                    hairGrad.addColorStop(0.6, '#cc3300');
-                    hairGrad.addColorStop(1, '#a6c62d');
-                    
-                    ctx.strokeStyle = hairGrad;
-                    ctx.lineWidth = 3;
-                    ctx.stroke();
-                }
-
-                // Bomb mechanism (Steel fuse base)
-                ctx.fillStyle = '#444';
-                ctx.beginPath();
-                ctx.roundRect(-10, -r-10, 20, 15, 3);
-                ctx.fill();
-                ctx.fillStyle = '#222';
-                ctx.fillRect(-12, -r-12, 24, 4);
-                
-                // Sparkling Fuse
-                ctx.beginPath();
-                ctx.moveTo(0, -r-10);
-                let fuseEndX = 15;
-                let fuseEndY = -r-25;
-                ctx.quadraticCurveTo(5, -r-25, fuseEndX, fuseEndY);
-                ctx.strokeStyle = '#c68e17';
-                ctx.lineWidth = 3;
-                ctx.stroke();
-                
-                // Dynamic Spark animation
-                const time = Date.now() / 150;
-                const sparkSize = 4 + Math.sin(time) * 2;
-                
-                ctx.beginPath();
-                ctx.arc(fuseEndX, fuseEndY, sparkSize * 1.5, 0, Math.PI*2);
-                ctx.fillStyle = 'rgba(255, 69, 0, 0.5)';
-                ctx.fill();
-                
-                ctx.beginPath();
-                ctx.arc(fuseEndX, fuseEndY, sparkSize, 0, Math.PI*2);
-                ctx.fillStyle = '#ffff00';
-                ctx.fill();
-            }
-
-            slice(cutAngle) {
-                if (this.isHalf || this.type === 'bomb') return;
-                
-                this.isHalf = true;
-                
-                const pushSpeed = 5;
-                const vx1 = this.vx + Math.cos(cutAngle + Math.PI/2) * pushSpeed;
-                const vy1 = this.vy + Math.sin(cutAngle + Math.PI/2) * pushSpeed;
-                const vx2 = this.vx + Math.cos(cutAngle - Math.PI/2) * pushSpeed;
-                const vy2 = this.vy + Math.sin(cutAngle - Math.PI/2) * pushSpeed;
-
-                this.halves = [
-                { x: this.x, y: this.y, vx: vx1, vy: vy1, rotation: this.rotation, rotSpeed: this.rotationSpeed - 0.15, side: 1 },
-                { x: this.x, y: this.y, vx: vx2, vy: vy2, rotation: this.rotation, rotSpeed: this.rotationSpeed + 0.15, side: -1 }
-            ];
-
-            // SFX on slice
-            SFX.splat();
-
-            // Meat particles
-            createParticles(this.x, this.y, this.fruitData.meatBase, 12, 'meat');
-            // Shell particles
-                createParticles(this.x, this.y, this.fruitData.cBase, 8, 'shell');
-                
-                addScore(this.fruitData.points, this.x, this.y);
-            }
-        }
-
-        class Particle {
-            constructor(x, y, color, type) {
-                this.x = x;
-                this.y = y;
-                this.vx = rand(-8, 8);
-                this.vy = rand(-10, 2); // Initial burst upwards
-                this.life = 1.0;
-                this.decay = rand(0.01, 0.02);
-                this.color = color;
-                this.type = type;
-                this.size = type === 'meat' ? rand(4, 10) : rand(3, 6);
-                this.rotation = rand(0, Math.PI*2);
-                this.rotSpeed = rand(-0.2, 0.2);
-            }
-            update() {
-                this.vy += GRAVITY;
-                this.x += this.vx;
-                this.y += this.vy;
-                this.life -= this.decay;
-                this.rotation += this.rotSpeed;
-            }
-            draw(ctx) {
-                if (this.life <= 0) return;
-                ctx.save();
-                ctx.globalAlpha = this.life;
-                ctx.translate(this.x, this.y);
-                ctx.rotate(this.rotation);
-                
-                ctx.fillStyle = this.color;
-                if (this.type === 'meat') {
-                    // Blobby shapes for meat
-                    ctx.beginPath();
-                    ctx.ellipse(0, 0, this.size, this.size*0.6, 0, 0, Math.PI*2);
-                    ctx.fill();
-                } else {
-                    // Sharp shards for shell
-                    ctx.beginPath();
-                    ctx.moveTo(-this.size, -this.size);
-                    ctx.lineTo(this.size, -this.size/2);
-                    ctx.lineTo(0, this.size);
-                    ctx.closePath();
-                    ctx.fill();
-                }
-                
-                ctx.restore();
-            }
-        }
-
-        function createParticles(x, y, color, count, type) {
-            for(let i=0; i<count; i++) {
-                particles.push(new Particle(x, y, color, type));
-            }
-        }
-
-        function addSlicePoint(x, y) {
-            slicePoints.push({x, y, time: Date.now()});
-            slicePoints = slicePoints.filter(p => Date.now() - p.time < 120); // Fast fading trail
-            checkCollisions();
-        }
-
-        // Mouse Events
-    container.addEventListener('mousedown', (e) => {
-        if(gameState !== 'PLAYING') return;
-        isSlicing = true;
-        SFX.slice(); // Play swoosh sound
-        container.classList.add('slicing');
-        slicePoints = [];
-        addSlicePoint(e.clientX, e.clientY);
-    });
-    container.addEventListener('mousemove', (e) => {
-            if (isSlicing) addSlicePoint(e.clientX, e.clientY);
-        });
-        window.addEventListener('mouseup', () => {
-            isSlicing = false;
-            container.classList.remove('slicing');
-            slicePoints = [];
-        });
-
-        // Touch Events
-    container.addEventListener('touchstart', (e) => {
-        e.preventDefault(); 
-        if(gameState !== 'PLAYING') return;
-        isSlicing = true;
-        SFX.slice(); // Play swoosh sound
-        slicePoints = [];
-        const touch = e.touches[0];
-        addSlicePoint(touch.clientX, touch.clientY);
-    }, {passive: false});
+function initAudio() {
+    // Upbeat background track
+    bgm = new Tone.PolySynth(Tone.Synth).toDestination();
+    bgm.volume.value = -12;
+    const melody = ["C4", "E4", "G4", "A4", "C5", "A4", "G4", "E4"];
+    let noteIndex = 0;
     
-    container.addEventListener('touchmove', (e) => {
-            e.preventDefault();
-            if (isSlicing) {
-                const touch = e.touches[0];
-                addSlicePoint(touch.clientX, touch.clientY);
-            }
-        }, {passive: false});
-
-        window.addEventListener('touchend', () => {
-            isSlicing = false;
-            slicePoints = [];
-        });
-
-        function checkCollisions() {
-            if (slicePoints.length < 2) return;
-            
-            let p1 = slicePoints[slicePoints.length - 2];
-            let p2 = slicePoints[slicePoints.length - 1];
-            
-            let cutAngle = Math.atan2(p2.y - p1.y, p2.x - p1.x);
-
-            targets.forEach(target => {
-                if (!target.active || target.isHalf) return;
-
-                let dx = p2.x - p1.x;
-                let dy = p2.y - p1.y;
-                let lengthSquared = dx*dx + dy*dy;
-                
-                let t = 0;
-                if (lengthSquared > 0) {
-                    t = ((target.x - p1.x) * dx + (target.y - p1.y) * dy) / lengthSquared;
-                    t = Math.max(0, Math.min(1, t)); 
-                }
-                
-                let closestX = p1.x + t * dx;
-                let closestY = p1.y + t * dy;
-                
-                let distX = target.x - closestX;
-                let distY = target.y - closestY;
-                let distance = Math.sqrt(distX*distX + distY*distY);
-
-                if (distance < target.radius * 0.8) { // slightly smaller hitbox for realism
-                    if (target.type === 'bomb') {
-                        triggerGameOver('bomb');
-                    } else {
-                        target.slice(cutAngle);
-                    }
-                }
-            });
+    Tone.Transport.scheduleRepeat(time => {
+        if(isPlaying) {
+            bgm.triggerAttackRelease(melody[noteIndex % melody.length], "8n", time);
+            noteIndex++;
         }
+    }, "8n");
+    Tone.Transport.bpm.value = 160;
 
-        function spawnTarget() {
-        if (gameState !== 'PLAYING') return;
+    // Sound Effects
+    swooshSynth = new Tone.NoiseSynth({
+        noise: { type: "pink" },
+        envelope: { attack: 0.01, decay: 0.1, sustain: 0 }
+    }).toDestination();
+    swooshSynth.volume.value = -15;
 
-        // Bomb probability scales gradually with score (starts at a safe 5%)
-        let baseBombChance = 0.05;
-        let bombChance = Math.min(0.35, baseBombChance + (score * 0.00015));
-        let isBomb = Math.random() < bombChance;
+    splatSynth = new Tone.MembraneSynth().toDestination();
+    splatSynth.volume.value = -5;
+
+    boomSynth = new Tone.FMSynth().toDestination();
+    boomSynth.volume.value = 0;
+}
+
+function playSwoosh() { if(Tone.context.state === 'running') swooshSynth.triggerAttackRelease("16n"); }
+function playSplat() { if(Tone.context.state === 'running') splatSynth.triggerAttackRelease("C2", "8n"); }
+function playBoom() { if(Tone.context.state === 'running') boomSynth.triggerAttackRelease("C1", "2n"); }
+
+/**
+ * INPUT HANDLING (Unified Mouse & Mobile Touch)
+ */
+function updateBlade(x, y) {
+    bladeTrail.push({x, y});
+    if (bladeTrail.length > MAX_TRAIL) {
+        bladeTrail.shift();
+    }
+    checkCollisions();
+}
+
+// MOUSE
+canvas.addEventListener('mousedown', (e) => { isSlicing = true; bladeTrail = []; updateBlade(e.clientX, e.clientY); });
+canvas.addEventListener('mousemove', (e) => { if (isSlicing) updateBlade(e.clientX, e.clientY); });
+canvas.addEventListener('mouseup', () => { isSlicing = false; bladeTrail = []; });
+canvas.addEventListener('mouseleave', () => { isSlicing = false; bladeTrail = []; });
+
+// TOUCH (Fixed for Mobile)
+canvas.addEventListener('touchstart', (e) => {
+    e.preventDefault(); // Stop mobile screen scrolling
+    isSlicing = true;
+    bladeTrail = [];
+    const touch = e.touches[0];
+    updateBlade(touch.clientX, touch.clientY);
+}, { passive: false });
+
+canvas.addEventListener('touchmove', (e) => {
+    e.preventDefault();
+    if (isSlicing) {
+        const touch = e.touches[0];
+        updateBlade(touch.clientX, touch.clientY);
+        if(frame % 5 === 0) playSwoosh(); // Play swoosh sound occasionally when swiping
+    }
+}, { passive: false });
+
+canvas.addEventListener('touchend', (e) => {
+    e.preventDefault();
+    isSlicing = false;
+    bladeTrail = [];
+}, { passive: false });
+
+
+/**
+ * GAME ENTITIES
+ */
+class Fruit {
+    constructor() {
+        this.radius = Math.random() * 20 + 40; // Size 40-60
+        this.x = Math.random() * (width - this.radius * 2) + this.radius;
+        this.y = height + this.radius;
         
-        let x = rand(100, canvas.width - 100);
-        let y = canvas.height + 60;
+        // Push towards center
+        const toCenter = (width / 2) - this.x;
+        this.vx = (toCenter / width) * (Math.random() * 10 + 5); 
+        this.vy = -(Math.random() * (jumpVelocityMax - jumpVelocityMin) + jumpVelocityMin);
         
-        let targetX = rand(canvas.width*0.2, canvas.width*0.8);
-        let dx = targetX - x;
-        let vx = dx / (80 * difficultyMultiplier); 
+        this.rotation = 0;
+        this.rotationSpeed = (Math.random() - 0.5) * 0.2;
         
-        // Vertical velocity scales with difficulty, lower base for easier start
-        let vyBase = canvas.height < 600 ? -12 : -15;
-        let vy = rand(vyBase, vyBase - 3) * difficultyMultiplier; 
-        
-        targets.push(new Target(x, y, vx, vy, isBomb ? 'bomb' : 'fruit'));
+        this.isBomb = Math.random() < bombChance;
+        this.sliced = false;
     }
 
-    function addScore(points, x, y) {
-            score += points;
-            scoreValue.innerText = score;
-            
-            // Pop effect on scoreboard
-            scoreBoardEl.classList.remove('pop');
-        void scoreBoardEl.offsetWidth; // trigger reflow
-        scoreBoardEl.classList.add('pop');
-
-        // Difficulty Scaling - More gradual curve for longer playability
-        difficultyMultiplier = 1 + (score * 0.0002);
-        spawnRate = Math.max(40, baseSpawnRate - Math.floor(score * 0.03));
-
-        // Floating Score text
-        let el = document.createElement('div');
-            el.className = 'score-pop';
-            el.innerText = `+${points}`;
-            el.style.left = `${x}px`;
-            el.style.top = `${y}px`;
-            container.appendChild(el);
-            setTimeout(() => { if (el.parentNode) el.parentNode.removeChild(el); }, 1000);
-        }
-
-        function updateLivesDisplay() {
-            for(let i=1; i<=3; i++) {
-                let icon = document.getElementById(`life${i}`);
-                if (i <= lives) {
-                    icon.classList.remove('lost');
-                } else {
-                    icon.classList.add('lost');
-                }
-            }
-        }
-
-        function loseLife() {
-        lives--;
-        updateLivesDisplay();
-        
-        SFX.miss(); // Play sad tone
-        
-        // Red damage flash
-        flashOverlay.style.backgroundColor = 'rgba(255, 0, 0, 0.4)';
-        flashOverlay.style.opacity = '1';
-        setTimeout(() => { flashOverlay.style.opacity = '0'; }, 200);
-
-        if (lives <= 0) {
-            triggerGameOver('drop');
-        }
+    update() {
+        this.x += this.vx;
+        this.y += this.vy;
+        this.vy += gravity; // Gravity applied here
+        this.rotation += this.rotationSpeed;
     }
 
-    function triggerGameOver(reason) {
-        gameState = 'GAMEOVER';
-        isSlicing = false;
-        
-        SFX.stopBGM(); // Stop the music on game over
-        
-        // Intense flash and sound based on reason
-        if(reason === 'bomb') {
-            SFX.boom();
-            flashOverlay.style.backgroundColor = '#fff';
-        } else {
-            SFX.gameOver();
-            flashOverlay.style.backgroundColor = 'rgba(255, 0, 0, 0.7)';
-        }
-        flashOverlay.style.opacity = '1';
-        
-        setTimeout(() => {
-                flashOverlay.style.opacity = '0';
-                uiLayer.classList.add('hidden');
-                gameOverScreen.classList.remove('hidden');
-                
-                finalScore.innerText = score;
-                
-                if (score > highScore) {
-                    highScore = score;
-                    localStorage.setItem('durianNinjaHighScoreV2', highScore);
-                    highScoreText.innerText = `🏆 NEW KING OF FRUITS! 🏆`;
-                    highScoreText.style.color = '#FFD700';
-                } else {
-                    highScoreText.innerText = `HIGH SCORE: ${highScore}`;
-                    highScoreText.style.color = '#a5d6a7';
-                }
-            }, 600);
-        }
+    draw(ctx) {
+        ctx.save();
+        ctx.translate(this.x, this.y);
+        ctx.rotate(this.rotation);
 
-        function startGame() {
-        SFX.init().then(() => {
-            SFX.start();
-            SFX.playBGM(); // Start the looping background track
-        });
-        
-        gameState = 'PLAYING';
-        score = 0;
-        lives = 3;
-        frameCount = 0;
-            targets = [];
-            particles = [];
-            slicePoints = [];
-            difficultyMultiplier = 1;
-            spawnRate = baseSpawnRate;
-            
-            scoreValue.innerText = score;
-            updateLivesDisplay();
-            
-            startScreen.classList.add('hidden');
-            gameOverScreen.classList.add('hidden');
-            uiLayer.classList.remove('hidden');
-        }
-
-        document.getElementById('start-btn').addEventListener('click', startGame);
-        document.getElementById('restart-btn').addEventListener('click', startGame);
-
-        function drawBladeTrail() {
-            if (slicePoints.length < 2) return;
-            
+        if (this.isBomb) {
+            // Draw Rambutan Bomb
             ctx.beginPath();
-            ctx.moveTo(slicePoints[0].x, slicePoints[0].y);
+            ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
+            ctx.fillStyle = '#222'; // Black core
+            ctx.fill();
             
-            // Use quadratic curves for smoother trail
-            for (let i = 1; i < slicePoints.length - 1; i++) {
-                let xc = (slicePoints[i].x + slicePoints[i + 1].x) / 2;
-                let yc = (slicePoints[i].y + slicePoints[i + 1].y) / 2;
-                ctx.quadraticCurveTo(slicePoints[i].x, slicePoints[i].y, xc, yc);
+            // Red spikes (Rambutan hair)
+            for(let i=0; i<12; i++) {
+                ctx.rotate((Math.PI * 2) / 12);
+                ctx.beginPath();
+                ctx.moveTo(0, this.radius - 5);
+                ctx.lineTo(-5, this.radius + 15);
+                ctx.lineTo(5, this.radius + 15);
+                ctx.fillStyle = '#FF0000';
+                ctx.fill();
             }
-            // curve through the last two points
-            ctx.lineTo(slicePoints[slicePoints.length - 1].x, slicePoints[slicePoints.length - 1].y);
+        } else {
+            // Draw Durian
+            ctx.beginPath();
+            ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
+            ctx.fillStyle = '#6B8E23'; // Olive green shell
+            ctx.fill();
             
-            // Glowing Durian Essence Aura
-            ctx.shadowBlur = 20;
-            ctx.shadowColor = '#a6c62d';
-            
-            // Outer trail
-            ctx.strokeStyle = 'rgba(166, 198, 45, 0.6)'; // Greenish yellow
-            ctx.lineWidth = 14;
-            ctx.lineCap = 'round';
-            ctx.lineJoin = 'round';
-            ctx.stroke();
-            
-            // Core trail
-            ctx.shadowBlur = 0;
-            ctx.strokeStyle = '#fff';
-            ctx.lineWidth = 4;
-            ctx.stroke();
+            // Spikes
+            for(let i=0; i<16; i++) {
+                ctx.rotate((Math.PI * 2) / 16);
+                ctx.beginPath();
+                ctx.moveTo(-10, this.radius - 5);
+                ctx.lineTo(0, this.radius + 15);
+                ctx.lineTo(10, this.radius - 5);
+                ctx.fillStyle = '#556B2F';
+                ctx.fill();
+            }
+
+            // If we wanted half durians to fall, we'd handle it here. 
+            // For arcade speed, we just destroy it and spawn particles.
         }
 
-        function gameLoop() {
-            requestAnimationFrame(gameLoop);
+        ctx.restore();
+    }
+}
+
+class Particle {
+    constructor(x, y, color) {
+        this.x = x;
+        this.y = y;
+        this.vx = (Math.random() - 0.5) * 10;
+        this.vy = (Math.random() - 0.5) * 10;
+        this.life = 1.0;
+        this.color = color;
+        this.size = Math.random() * 10 + 5;
+    }
+    update() {
+        this.x += this.vx;
+        this.y += this.vy;
+        this.vy += 0.2; // particle gravity
+        this.life -= 0.02;
+    }
+    draw(ctx) {
+        ctx.globalAlpha = Math.max(0, this.life);
+        ctx.fillStyle = this.color;
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.size, 0, Math.PI*2);
+        ctx.fill();
+        ctx.globalAlpha = 1.0;
+    }
+}
+
+/**
+ * LOGIC & COLLISION
+ */
+function spawnFruit() {
+    fruits.push(new Fruit());
+}
+
+function createExplosion(x, y, isBomb) {
+    const colors = isBomb ? ['#FF0000', '#222222', '#FFA500'] : ['#FFD700', '#FFFACD', '#6B8E23', '#556B2F'];
+    for(let i = 0; i < 30; i++) {
+        let color = colors[Math.floor(Math.random() * colors.length)];
+        particles.push(new Particle(x, y, color));
+    }
+}
+
+// Check if blade line intersects fruit circle
+function checkCollisions() {
+    if (bladeTrail.length < 2) return;
+    
+    let p1 = bladeTrail[bladeTrail.length - 2];
+    let p2 = bladeTrail[bladeTrail.length - 1];
+
+    for (let i = fruits.length - 1; i >= 0; i--) {
+        let f = fruits[i];
+        
+        // Basic distance check from line segment to circle center
+        let dist = distToSegment(f, p1, p2);
+        
+        if (dist < f.radius && !f.sliced) {
+            f.sliced = true;
             
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-            if (gameState === 'PLAYING') {
-                frameCount++;
-                if (frameCount % spawnRate === 0) {
-                    spawnTarget();
-                    // Chance for multiple spawns simultaneously (Frenzy)
-                    let maxExtraSpawns = Math.floor(score / 500);
-                    let extraSpawns = Math.min(3, maxExtraSpawns);
-                    
-                    for(let i=0; i<extraSpawns; i++) {
-                        if (Math.random() < 0.4) {
-                            setTimeout(spawnTarget, rand(100, 400));
-                        }
-                    }
-                }
+            if (f.isBomb) {
+                playBoom();
+                createExplosion(f.x, f.y, true);
+                loseLife();
+            } else {
+                playSplat();
+                createExplosion(f.x, f.y, false);
+                score += 10;
+                updateHUD();
+                increaseDifficulty();
             }
-
-            // Render Particles
-            for (let i = particles.length - 1; i >= 0; i--) {
-                particles[i].update();
-                particles[i].draw(ctx);
-                if (particles[i].life <= 0) particles.splice(i, 1);
-            }
-
-            // Render Targets
-            for (let i = targets.length - 1; i >= 0; i--) {
-                targets[i].update();
-                targets[i].draw(ctx);
-                if (!targets[i].active) {
-                    targets.splice(i, 1);
-                }
-            }
-
-            // Render Blade
-            if (isSlicing) {
-                drawBladeTrail();
-            }
+            
+            fruits.splice(i, 1); // Remove fruit
         }
+    }
+}
 
-        // Initialize Background and Start Loop
-        window.onload = function() {
-            gameLoop();
-        };
+// Math helper for slicing line collision
+function distToSegment(p, v, w) {
+    let l2 = (w.x - v.x)**2 + (w.y - v.y)**2;
+    if (l2 === 0) return Math.hypot(p.x - v.x, p.y - v.y);
+    let t = ((p.x - v.x) * (w.x - v.x) + (p.y - v.y) * (w.y - v.y)) / l2;
+    t = Math.max(0, Math.min(1, t));
+    return Math.hypot(p.x - (v.x + t * (w.x - v.x)), p.y - (v.y + t * (w.y - v.y)));
+}
 
-    </script>
+function increaseDifficulty() {
+    // Slowly increase speed, gravity, and bomb chance as score goes up
+    if (score % 50 === 0) {
+        spawnRate = Math.max(30, spawnRate - 5); // Spawns faster (lower frame delay)
+        bombChance = Math.min(0.3, bombChance + 0.02); // More bombs
+        gravity = Math.min(0.25, gravity + 0.01); // Falls faster
+        jumpVelocityMin += 0.2; // Shoots up higher
+        jumpVelocityMax += 0.2;
+    }
+}
+
+function loseLife() {
+    lives--;
+    updateHUD();
+    
+    // Screen flash effect
+    ctx.fillStyle = 'rgba(255, 0, 0, 0.5)';
+    ctx.fillRect(0, 0, width, height);
+
+    if (lives <= 0) {
+        endGame();
+    }
+}
+
+function updateHUD() {
+    scoreBoard.innerText = `Score: ${score}`;
+    let hearts = "";
+    for(let i=0; i<lives; i++) hearts += "💛";
+    livesBoard.innerText = `Lives: ${lives} ${hearts}`;
+}
+
+/**
+ * GAME LOOP
+ */
+function drawBlade() {
+    if (bladeTrail.length < 2) return;
+    
+    ctx.beginPath();
+    ctx.moveTo(bladeTrail[0].x, bladeTrail[0].y);
+    for (let i = 1; i < bladeTrail.length; i++) {
+        ctx.lineTo(bladeTrail[i].x, bladeTrail[i].y);
+    }
+    
+    // Glowing green trail
+    ctx.strokeStyle = '#32CD32';
+    ctx.lineWidth = 8;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.shadowBlur = 15;
+    ctx.shadowColor = '#FFD700'; // Gold shadow for durian essence
+    ctx.stroke();
+    ctx.shadowBlur = 0; // reset
+}
+
+function loop() {
+    if (!isPlaying) return;
+    
+    requestAnimationFrame(loop);
+    
+    // Background (Dark Jungle Green)
+    ctx.fillStyle = '#1b2a1a';
+    ctx.fillRect(0, 0, width, height);
+
+    // Spawning
+    if (frame % spawnRate === 0) {
+        spawnFruit();
+    }
+
+    // Update & Draw Fruits
+    for (let i = fruits.length - 1; i >= 0; i--) {
+        let f = fruits[i];
+        f.update();
+        f.draw(ctx);
+        
+        // Remove if falls off screen
+        if (f.y > height + f.radius * 2) {
+            if (!f.isBomb && !f.sliced) {
+                loseLife(); // Lose life for missing a durian!
+            }
+            fruits.splice(i, 1);
+        }
+    }
+
+    // Update & Draw Particles
+    for (let i = particles.length - 1; i >= 0; i--) {
+        let p = particles[i];
+        p.update();
+        p.draw(ctx);
+        if (p.life <= 0) particles.splice(i, 1);
+    }
+
+    drawBlade();
+    
+    frame++;
+}
+
+/**
+ * GAME FLOW CONTROLS
+ */
+async function startGame() {
+    // Start Audio Context on user gesture
+    await Tone.start();
+    initAudio();
+    Tone.Transport.start();
+
+    // Reset variables
+    score = 0;
+    lives = 3;
+    fruits = [];
+    particles = [];
+    frame = 0;
+    spawnRate = 100; 
+    bombChance = 0.1;
+    gravity = 0.15;
+    jumpVelocityMin = 12;
+    jumpVelocityMax = 18;
+    
+    updateHUD();
+
+    // UI Updates
+    menu.style.display = 'none';
+    gameOverScreen.style.display = 'none';
+    hud.style.display = 'flex';
+    
+    isPlaying = true;
+    loop();
+}
+
+function endGame() {
+    isPlaying = false;
+    Tone.Transport.stop(); // Stop music
+    
+    hud.style.display = 'none';
+    gameOverScreen.style.display = 'flex';
+    finalScoreDisplay.innerText = `You Scored: ${score}`;
+}
+
+// Event Listeners
+startBtn.addEventListener('click', startGame);
+restartBtn.addEventListener('click', startGame);
+
+</script>
 </body>
 </html>
